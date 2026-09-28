@@ -113,8 +113,8 @@ habitude heals workflows/download_invoice     # review what the LLM changed
 Requires **Python 3.11+** (developed on 3.12).
 
 ```bash
-git clone https://github.com/<your-username>/habitude.git
-cd habitude
+git clone https://github.com/vbvansh/Habitude.git
+cd Habitude
 
 # Create and activate a virtual environment
 python -m venv .venv
@@ -125,7 +125,7 @@ source .venv/bin/activate       # macOS / Linux
 pip install -r requirements.txt
 playwright install chromium
 
-# Add your API key
+# Add an API key for any supported LLM (Gemini's free tier works)
 copy .env.example .env          # Windows  (cp on macOS / Linux)
 ```
 
@@ -133,7 +133,8 @@ copy .env.example .env          # Windows  (cp on macOS / Linux)
 
 - [browser-use](https://github.com/browser-use/browser-use): the AI agent we record
 - [Playwright](https://playwright.dev/python/): the browser engine used for replay
-- [Anthropic Claude](https://docs.anthropic.com/): the LLM used for recording and self-healing
+- Any LLM for recording and self-healing: Google Gemini (free tier), Groq, OpenRouter,
+  local models through [Ollama](https://ollama.com/), Anthropic Claude, or OpenAI
 - [Pydantic](https://docs.pydantic.dev/), [Typer](https://typer.tiangolo.com/), [Rich](https://rich.readthedocs.io/)
 
 ## License
