@@ -63,13 +63,23 @@ def check_opencode(key):
     base = "https://opencode.ai/zen/go/v1"
     model = os.getenv("OPENCODE_GO_MODEL") or "deepseek-v4-flash"
     print(f"  model: {model}")
+
+    # The model list is public (no key needed), so we can catch a wrong model ID early.
+    status, _, body = call(f"{base}/models", {})
+    if status == 200:
+        ids = [m["id"] for m in body["data"]]
+        if model not in ids:
+            print(f"  '{model}' is not a valid model ID. Use one of these in OPENCODE_GO_MODEL:")
+            print(f"  {', '.join(ids)}")
+            return 404, {}, "unknown model ID"
     status, headers, body = call(
         f"{base}/chat/completions",
         {"Authorization": f"Bearer {key}", "x-opencode-session": str(uuid.uuid4())},
-        {"model": model, "messages": [{"role": "user", "content": "Reply with just: OK"}], "max_tokens": 10},
+        {"model": model, "messages": [{"role": "user", "content": "Reply with just: OK"}], "max_tokens": 300},
     )
     if status == 200:
-        print(f"  reply: {body['choices'][0]['message']['content']!r}")
+        reply = body["choices"][0]["message"].get("content")
+        print(f"  reply: {reply!r}" if reply else "  reply: (empty - model spent its tokens thinking)")
     return status, headers, body
 
 
