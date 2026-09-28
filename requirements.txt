@@ -1,0 +1,44 @@
+# ------------------------------------------------------------------
+# Habitude - Python dependencies
+# Install with:  pip install -r requirements.txt
+# Then download the browser once with:  playwright install chromium
+# ------------------------------------------------------------------
+
+# --- Core: driving the browser -------------------------------------
+# The "hands". Replays compiled scripts in a real browser with no AI.
+playwright==1.63.0
+
+# --- Core: the AI agent we learn from ------------------------------
+# The "first-day employee". An AI agent that browses websites on its
+# own. We watch (record) what it does the first time.
+browser-use==0.13.10
+
+# --- Core: talking to the AI (LLM) ---------------------------------
+# Official client for Claude. Used when a step breaks and we need the
+# AI to look at the page and fix just that one step.
+# (Version is locked to the one browser-use expects, so they share it.)
+anthropic==0.76.0
+
+# --- Core: data shapes ---------------------------------------------
+# Lets us describe exactly what a "recorded step" looks like and checks
+# that the data really matches that shape.
+pydantic==2.13.5
+
+# --- Core: helpers --------------------------------------------------
+# Fuzzy text matching: finds "Sign in" when the button now says "Sign In ".
+rapidfuzz==3.14.6
+# Fills in templates. We use it to write the final Playwright script file.
+Jinja2==3.1.6
+# Reads secret keys (like your Claude API key) from a local .env file.
+python-dotenv==1.2.2
+
+# --- Command-line tool ---------------------------------------------
+# Lets developers type commands like `habitude record ...` in the terminal.
+typer==0.27.2
+# Colourful, readable terminal output (tables, progress, errors).
+rich==14.3.3
+
+# --- Development only (testing and code style) ---------------------
+pytest==9.1.1
+pytest-asyncio==1.4.0
+ruff==0.16.9

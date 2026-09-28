@@ -1,0 +1,27 @@
+# Virtual environment (each developer creates their own)
+.venv/
+
+# Secret keys - never commit these
+.env
+
+# Python cache files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Build output (created when we package the library)
+build/
+dist/
+*.egg-info/
+
+# Local recordings, traces and browser data
+recordings/
+traces/
+*.har
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
