@@ -61,7 +61,7 @@ def limit_headers(headers):
 
 def check_opencode(key):
     base = "https://opencode.ai/zen/go/v1"
-    model = os.getenv("OPENCODE_GO_MODEL") or "deepseek-v4-flash"
+    model = os.getenv("OPENCODE_GO_MODEL") or "deepseek-v4.1-flash"
     print(f"  model: {model}")
 
     # The model list is public (no key needed), so we can catch a wrong model ID early.
