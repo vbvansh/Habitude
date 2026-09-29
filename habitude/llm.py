@@ -35,6 +35,11 @@ def default_llm(model: str | None = None) -> BaseChatModel:
         model=model or os.getenv("OPENCODE_GO_MODEL") or DEFAULT_MODEL,
         base_url=OPENCODE_GO_URL,
         api_key=api_key,
+        # OpenCode Go's deepseek route rejects some JSON schemas sent as
+        # `response_format` (HTTP 400) and returns runs of blank lines for others.
+        # Describing the schema in the system prompt instead works reliably.
+        dont_force_structured_output=True,
+        add_schema_to_system_prompt=True,
         default_headers={
             "User-Agent": f"habitude/{__version__}",
             "x-opencode-session": SESSION_ID,
