@@ -1,112 +1,155 @@
 # Habitude
 
-**Teach your AI agent a habit. Run it once with the LLM, then replay it without one.**
+**A JIT compiler for computer-use agents.**
+Run a task once with an AI agent. After that, it runs as verified, self-repairing code.
 
-Habitude watches an AI browser agent do a task once, compiles what it did into a
-plain, readable Playwright script, and replays that script on later runs with
-**no LLM calls**. The LLM only comes back for the single step that breaks, and
-when it fixes that step, the fix is saved as a reviewable change to the script.
-
-> **Status: early development.** The design is set and the library is being built
-> in the open. Items marked *planned* do not exist yet.
+> **Status: in active development.** v0.1 (browser) is being built now; see [PLAN.md](PLAN.md).
+> Everything below describes the target design. Items marked *v0.2* or *later* do not exist yet.
 
 ---
 
 ## The problem
 
-AI browser agents (browser-use, Claude computer use, Stagehand, and others) treat
-every run as the first time they have seen the website. For each click they look at
-the page, think, act, and look again. That makes repeated tasks:
+Developers who use AI agents to operate computers (websites first, desktop apps next)
+for repeated tasks pay for the agent to re-think the same steps on every run:
 
-- **Slow.** A task that takes a script 5 seconds can take the agent minutes.
-- **Expensive.** Every step costs LLM tokens, on every run.
-- **Unpredictable.** The same task can be done differently each time.
+- **Slow.** Minutes for a task a script does in seconds.
+- **Expensive.** Every step of every run costs LLM tokens.
+- **Unpredictable.** The same task takes a different path each time.
+- **Unverified.** When the agent says "done", there is no proof it actually succeeded.
 
-Most business automation repeats the same few tasks: filling the same form,
-downloading the same report, checking the same dashboard. Once an agent has worked
-out the steps, it shouldn't need to think again.
+Turning agent runs into scripts saves the tokens but creates new problems: scripts break
+when the app or site changes, and existing replay tools either fail silently or need
+someone to fix them by hand.
 
-## How Habitude works
+## The four promises
+
+Habitude is built, and benchmarked, around four measurable promises:
+
+| # | Promise | Measured as |
+|---|---|---|
+| 1 | **Cheap:** repeat runs make no LLM calls | LLM calls and cost per run |
+| 2 | **Fast:** seconds, not minutes | Time per run |
+| 3 | **Self-repairing:** when the site or app changes, only the broken step is fixed, and you see exactly what changed | Repair success rate and LLM calls per repair |
+| 4 | **Honest:** every run ends with proof of success or a clear failure, never a silent wrong result | Wrong results caught vs. missed |
+
+## How it works
+
+JavaScript engines make code fast with a JIT (just-in-time) compiler: run slowly at first
+while watching, compile what repeats into fast code guarded by checks, and fall back to
+the slow path when a check fails. Habitude does the same for agents.
 
 ```
-  ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-  │  RECORD  │ ──► │ COMPILE  │ ──► │  REPLAY  │ ──► │   HEAL   │
-  │ agent    │     │ trace →  │     │ no LLM,  │     │ LLM for  │
-  │ runs once│     │ script   │     │ fast     │     │ 1 step   │
-  └──────────┘     └──────────┘     └──────────┘     └────┬─────┘
-                                          ▲               │
-                                          └── fix saved ──┘
+ first run                 compile                    every later run
+┌───────────┐   trace   ┌───────────────┐        ┌──────────────────────────┐
+│ AI agent  │ ────────► │ code + checks │ ─────► │ run code (no LLM)        │
+│ does task │           │ + parameters  │        │ checks pass → receipt ✅ │
+└───────────┘           └───────────────┘        │ step breaks → ladder ↓   │
+                                                 └──────────────────────────┘
+ fallback ladder, cheapest first:
+   1. stored locators          → free
+   2. fuzzy re-find            → free, no LLM
+   3. LLM repairs that step    → 1 call, saved as a reviewable code change
+   4. full agent               → last resort
 ```
 
-1. **Record.** The agent does the task normally. Habitude logs every action: the page,
-   the element, what was typed, and a snapshot of the page around it.
-2. **Compile.** The log becomes a clean Playwright script. Values that change between
-   runs (dates, file names, search terms) become **parameters**.
-3. **Replay.** Later runs execute the script directly. No LLM is involved.
-4. **Verify.** After important steps, Habitude checks that the step really worked, not
-   just that it didn't crash.
-5. **Heal.** If a step fails, the LLM is called for that step only. The fix is saved
-   as a diff you can review, so the next run works without the LLM.
+1. **Record.** An AI agent does the task once. Habitude logs every action, the element
+   it touched (with several fingerprints for finding it again), and the page before and after.
+2. **Compile.** The recording becomes readable code. Values that change between runs
+   (dates, IDs, file names) become **parameters**. Passwords become placeholders and are never saved.
+3. **Replay.** Later runs execute the code directly. No LLM.
+4. **Check.** After key steps, generated checks confirm the step really worked. Every run
+   produces a **receipt**.
+5. **Repair.** If a step breaks, Habitude climbs the fallback ladder. An LLM fix is saved
+   as a code change with its reason, e.g. *"Button text changed from 'Export' to 'Download CSV'."*
 
-## What makes it different
+## Architecture
 
-Record-and-replay for agents already exists ([workflow-use](https://github.com/browser-use/workflow-use),
-[Stagehand caching](https://docs.stagehand.dev/v3/best-practices/deterministic-agent),
-[muscle-mem](https://github.com/pig-dot-dev/muscle-mem)). Habitude focuses on the parts
-that are still unsolved:
+One shared core, plus one small **driver** per platform:
 
-| Focus | What it means |
-|---|---|
-| **Catching silent failures** | Checks are generated from the recording, such as "a file was downloaded" or "the confirmation text appeared", so a step that ran but did the wrong thing is caught. |
-| **Real code output** | The output is a readable Playwright script you can open, edit, and commit to git, not a hidden cache. |
-| **Heals as diffs** | Every self-heal produces a reviewable change with its reason: *"Button text changed from 'Export' to 'Download CSV'."* |
-| **Robust element finding** | Each element is stored with several fingerprints (role, label, text, position, CSS), which are tried in order before the LLM is asked. |
-| **Branches, not one straight path** | Optional steps (cookie banners, popups, empty results) are handled as conditions instead of breaking the run. |
-| **Safety for risky actions** | Steps like *Pay*, *Delete*, or *Send* are flagged and only run after their target is verified. |
-| **Memory** | Habitude remembers past runs, heals, and site quirks, so fixes learned on one workflow help others on the same site. |
-| **Framework-agnostic** | Adapters record from different agents into one common trace format. |
-| **Robustness benchmark** | A public benchmark that deliberately changes websites and measures how often each tool recovers. |
+```
+┌──────────────────────── shared core ────────────────────────┐
+│ trace format · compiler · fallback ladder · LLM repair      │
+│ checks & receipts · repairs as code changes · secret masking │
+│ cost meter · MCP export · HabitudeBench                      │
+└──────────────┬───────────────────────────────┬──────────────┘
+               │                               │
+      Web driver (Playwright)        Windows driver (UI Automation)
+      v0.1                           v0.2
+```
+
+## Features
+
+| Feature | Why it matters | Version |
+|---|---|---|
+| One-line wrapper around a browser-use agent | Try it without rewriting your project | v0.1 |
+| Readable compiled code | Open it, edit it, commit it to git | v0.1 |
+| Run receipts (proof of success) | Catch "the agent said done, but it wasn't" | v0.1 |
+| Repairs as reviewable code changes | Trust what the bot changed | v0.1 |
+| Secret masking | Recordings are safe to commit | v0.1 |
+| Cost meter | See LLM calls, time, and money saved per run | v0.1 |
+| Risky-action guard | *Pay*, *Delete*, *Send* only run after their checks pass | v0.1 |
+| MCP export: a recorded workflow becomes a tool any AI assistant can call | Show it once, get a tool | v0.1 (stretch) |
+| Windows desktop apps, recorded from a human or an agent | Automate software with no API | v0.2 |
+| Skills shared across tasks on the same site or app | New tasks get cheaper too | later |
+| More agent adapters (Playwright MCP, Stagehand, Claude computer use) | Use the agent you already have | later |
+
+## Not in scope
+
+- A new AI agent. Habitude makes existing agents cheaper and more reliable.
+- A QA / end-to-end testing tool.
+- Mobile apps.
+- Getting around CAPTCHAs or anti-bot systems.
+- A paid cloud service. Habitude runs on your machine.
+
+## HabitudeBench
+
+Most agent benchmarks ask *"can the agent do this task once?"* HabitudeBench asks
+*"how cheaply and reliably can it do the task the 2nd to 100th time, including after the
+site changes?"* It measures all four promises on:
+
+- **[MiniWoB++](https://github.com/Farama-Foundation/miniwob-plusplus):** 100+ small web
+  tasks with randomized values, for testing parameters.
+- **[REAL](https://github.com/agi-inc/REAL):** deterministic replicas of real web apps,
+  for realistic multi-page workflows.
+- **Change injection:** renamed buttons, changed CSS classes, moved elements, surprise popups.
+
+Results will be published here with v0.1.
 
 ## Planned usage
 
-> This is the target developer experience. The API may change while the project is
-> being built.
+> Target API. It may change before v0.1.
 
 ```python
+from browser_use import Agent
 from habitude import Habitude
 
 hb = Habitude()
 
-# First run: the AI agent does the task and Habitude records it.
-workflow = await hb.record(
-    task="Log in to the demo shop and download the invoice for order 1042",
-    start_url="http://localhost:8000",
-)
-workflow.save("workflows/download_invoice")
+# First run: the agent does the task; Habitude records and compiles it.
+agent = Agent(task="Download the invoice for order 1042", llm=llm)
+result = await hb.run(agent, workflow="download_invoice")
 
-# Later runs: replay the compiled script with new parameters, with no LLM.
-result = await hb.replay("workflows/download_invoice", params={"order_id": "1057"})
-print(result.success, result.duration_s, result.llm_calls)   # True 3.8 0
+# Later runs: compiled code, new values, no LLM.
+result = await hb.replay("download_invoice", params={"order_id": "1057"})
+print(result.receipt)     # which checks passed
+print(result.llm_calls)   # 0
 ```
 
 ```bash
-habitude record "Download the invoice for order 1042" --url http://localhost:8000
-habitude replay workflows/download_invoice --param order_id=1057
-habitude heals workflows/download_invoice     # review what the LLM changed
+habitude replay download_invoice --param order_id=1057
+habitude repairs download_invoice      # review what the LLM changed
+habitude bench                         # run HabitudeBench
 ```
 
 ## Roadmap
 
-- [ ] **Phase 1: Record.** Capture browser-use runs in a common trace format.
-- [ ] **Phase 2: Compile.** Turn a trace into a Playwright script, with parameter detection.
-- [ ] **Phase 3: Replay.** Run scripts with a chain of element-finding strategies.
-- [ ] **Phase 4: Heal.** Fix one failing step with an LLM, saved as a reviewable diff.
-- [ ] **Phase 5: Verify.** Auto-generate post-step checks to catch silent failures.
-- [ ] **Phase 6: Hard parts.** Branching steps, risky-action guards, multi-recording parameter detection.
-- [ ] **Phase 7: Memory.** Store runs, heals, and per-site knowledge.
-- [ ] **Phase 8: Benchmark.** Demo sites plus deliberate page changes, compared with other tools.
-- [ ] **Phase 9: Library release.** Publish to PyPI (`pip install habitude`).
-- [ ] **Phase 10: Web app.** Hosted dashboard to browse workflows, runs, heals, and benchmark results.
+- **v0.1: browser** (target: Oct 4, 2026). Record, compile, replay, checks, repair,
+  secret masking, cost meter, HabitudeBench, PyPI release.
+- **v0.2: Windows desktop.** UI Automation driver, human recording, desktop checks and benchmark.
+- **Later:** cross-task skills, more agent adapters, macOS/Linux desktop, API fast-path.
+
+The day-by-day plan lives in [PLAN.md](PLAN.md).
 
 ## Development setup
 
@@ -116,27 +159,25 @@ Requires **Python 3.11+** (developed on 3.12).
 git clone https://github.com/vbvansh/Habitude.git
 cd Habitude
 
-# Create and activate a virtual environment
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 source .venv/bin/activate       # macOS / Linux
 
-# Install dependencies and the browser
 pip install -r requirements.txt
 playwright install chromium
 
-# Add an API key for any supported LLM (Gemini's free tier works)
-copy .env.example .env          # Windows  (cp on macOS / Linux)
+copy .env.example .env          # Windows  (cp on macOS / Linux), then add an LLM key
+python scripts/check_keys.py    # check which keys work
 ```
 
 ## Built with
 
 - [browser-use](https://github.com/browser-use/browser-use): the AI agent we record
 - [Playwright](https://playwright.dev/python/): the browser engine used for replay
-- Any LLM for recording and self-healing: Google Gemini (free tier), Groq, OpenRouter,
-  local models through [Ollama](https://ollama.com/), Anthropic Claude, or OpenAI
+- Any LLM for recording and repair: OpenCode Go, Google Gemini (free tier), Groq,
+  OpenRouter, local models through [Ollama](https://ollama.com/), Anthropic Claude, or OpenAI
 - [Pydantic](https://docs.pydantic.dev/), [Typer](https://typer.tiangolo.com/), [Rich](https://rich.readthedocs.io/)
 
 ## License
 
-MIT (to be added).
+MIT (license file added with v0.1).
