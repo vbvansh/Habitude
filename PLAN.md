@@ -61,8 +61,8 @@ or the benchmark; the problem statement depends on them.
 - [x] Package skeleton: `habitude/` folder, `pyproject.toml`, editable install
 - [x] `habitude/llm.py`: one place that builds the LLM (OpenCode Go, deepseek-v4.1-flash)
 - [x] Check that MiniWoB++ and REAL install alongside browser-use without version clashes
-- [ ] Prove Playwright and browser-use can control the **same** browser
-- [ ] Watch browser-use do one MiniWoB++ task; save its raw history to study
+- [x] Prove Playwright and browser-use can control the **same** browser
+- [x] Watch browser-use do one MiniWoB++ task; save its raw history to study
 
 ### Day 2 · Thu Oct 1: Record + Compile
 - [ ] Trace format (platform-neutral): Workflow → Steps → Target fingerprints
@@ -133,6 +133,7 @@ or the benchmark; the problem statement depends on them.
 | 2026-09-30 | Platform-neutral core + one driver per platform; web in v0.1, Windows in v0.2 |
 | 2026-09-30 | Problem statement and four promises locked |
 | 2026-09-30 | No BrowserGym (pins Playwright 1.44) and no agisdk (pulls in Ray). Our own small runners: MiniWoB++ HTML files + JS reward vars; REAL hosted sites + `/config`, `/finish` JSON + jmespath checks |
+| 2026-09-30 | OpenCode Go + deepseek: send the JSON schema in the system prompt, not as `response_format` (strict mode gives HTTP 400 on some schemas and blank-line output on others) |
 
 ## Parking lot (ideas for after v0.2)
 
