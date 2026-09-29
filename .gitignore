@@ -28,3 +28,6 @@ Thumbs.db
 
 # Downloaded benchmark files (MiniWoB++ etc.)
 third_party/
+
+# Raw agent runs saved by scripts
+runs/
