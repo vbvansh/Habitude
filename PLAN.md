@@ -58,9 +58,9 @@ or the benchmark; the problem statement depends on them.
 
 ### Day 1 · Wed Sep 30: Foundations
 - [x] Lock the problem; rewrite README; write this plan
-- [ ] Package skeleton: `habitude/` folder, `pyproject.toml`, editable install
-- [ ] `habitude/llm.py`: one place that builds the LLM (OpenCode Go, deepseek-v4.1-flash)
-- [ ] Check that MiniWoB++ and REAL install alongside browser-use without version clashes
+- [x] Package skeleton: `habitude/` folder, `pyproject.toml`, editable install
+- [x] `habitude/llm.py`: one place that builds the LLM (OpenCode Go, deepseek-v4.1-flash)
+- [x] Check that MiniWoB++ and REAL install alongside browser-use without version clashes
 - [ ] Prove Playwright and browser-use can control the **same** browser
 - [ ] Watch browser-use do one MiniWoB++ task; save its raw history to study
 
@@ -132,6 +132,7 @@ or the benchmark; the problem statement depends on them.
 | 2026-09-30 | Architecture: script compiler first, per-site skills later; runs on a fallback ladder |
 | 2026-09-30 | Platform-neutral core + one driver per platform; web in v0.1, Windows in v0.2 |
 | 2026-09-30 | Problem statement and four promises locked |
+| 2026-09-30 | No BrowserGym (pins Playwright 1.44) and no agisdk (pulls in Ray). Our own small runners: MiniWoB++ HTML files + JS reward vars; REAL hosted sites + `/config`, `/finish` JSON + jmespath checks |
 
 ## Parking lot (ideas for after v0.2)
 

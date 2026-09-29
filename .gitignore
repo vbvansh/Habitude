@@ -25,3 +25,6 @@ traces/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Downloaded benchmark files (MiniWoB++ etc.)
+third_party/
