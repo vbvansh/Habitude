@@ -65,18 +65,20 @@ or the benchmark; the problem statement depends on them.
 - [x] Watch browser-use do one MiniWoB++ task; save its raw history to study
 
 ### Day 2 · Thu Oct 1: Record + Compile
-- [ ] Trace format (platform-neutral): Workflow → Steps → Target fingerprints
-- [ ] Recorder: browser-use adapter → trace file (JSON)
-- [ ] Secret masking: passwords become placeholders
-- [ ] Compiler: trace → readable Python workflow file with parameters
-- [ ] Parameter detection (from the task text and typed values)
-- [ ] Tests on saved traces (no LLM needed)
+- [x] Trace format (platform-neutral): Workflow → Steps → Target fingerprints
+- [x] Recorder: browser-use adapter → trace file (JSON)
+- [x] Secret masking: passwords become placeholders
+- [x] Compiler: trace → readable Python workflow file with parameters
+- [x] Parameter detection (from the task text and typed values)
+- [x] Tests on saved traces (no LLM needed)
 
 ### Day 3 · Fri Oct 2: Replay + Repair + Checks
 - [ ] Driver interface + web driver (Playwright)
 - [ ] Fallback ladder: stored locators → fuzzy re-find → LLM repairs one step → full agent
 - [ ] Repairs saved as a diff with the reason
 - [ ] Generated checks after key steps + run receipt
+      (agents re-check their own work: in gomail-3, steps 6–13 of 13 were verification;
+      turn those into checks instead of replaying them)
 - [ ] Risky-action guard (basic)
 - [ ] Cost meter
 
@@ -134,6 +136,8 @@ or the benchmark; the problem statement depends on them.
 | 2026-09-30 | Problem statement and four promises locked |
 | 2026-09-30 | No BrowserGym (pins Playwright 1.44) and no agisdk (pulls in Ray). Our own small runners: MiniWoB++ HTML files + JS reward vars; REAL hosted sites + `/config`, `/finish` JSON + jmespath checks |
 | 2026-09-30 | OpenCode Go + deepseek: send the JSON schema in the system prompt, not as `response_format` (strict mode gives HTTP 400 on some schemas and blank-line output on others) |
+| 2026-10-01 | Compiled output is Python calling Habitude's runtime (`await run.click(Target(...))`), not raw Playwright: fingerprints stay available for repair, repairs are one-line diffs, and the same format serves web and desktop |
+| 2026-10-01 | Add plain JSON mode (`json_object`) on top of schema-in-prompt: stops DeepSeek answering in its own tool-call syntax (DSML) |
 
 ## Parking lot (ideas for after v0.2)
 
@@ -144,3 +148,4 @@ or the benchmark; the problem statement depends on them.
 - macOS / Linux desktop drivers
 - Hosted playground website
 - WebArena runs (needs cloud credits)
+- Name parameters with one LLM call (e.g. `email_input` → `recipient`)
