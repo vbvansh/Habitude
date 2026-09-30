@@ -6,7 +6,7 @@ Decisions such as parameters or locators are made later by the compiler.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -92,7 +92,7 @@ class Trace(BaseModel):
     agent_success: bool | None = None  # what the agent claimed at the end
     final_result: str | None = None
     stats: Stats = Field(default_factory=Stats)
-    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     def save(self, path: str | Path) -> None:
         Path(path).write_text(self.model_dump_json(indent=2, exclude_none=True), encoding="utf-8")
