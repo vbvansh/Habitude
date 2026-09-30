@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from itertools import zip_longest
 from pathlib import Path
@@ -15,6 +16,10 @@ from habitude.trace import Bounds, Stats, Step, Target, Trace
 # browser-use actions that only *look* at the page or its own notes. Replaying
 # them would change nothing, so they're left out of the trace.
 _LOOK_ONLY = {"dropdown_options", "find_text", "search_page", "find_elements", "screenshot", "read_file"}
+
+# browser-use reports clicks as `Clicked div "Compose"` or `Clicked div role=menuitem "Sent" ...`.
+# The quoted part is the element's visible text, which the element data itself doesn't include.
+_CLICKED_TEXT = re.compile(r'^Clicked \S+[^"\n]*"([^"\n]+)"')
 
 _SEARCH_URLS = {
     "duckduckgo": "https://duckduckgo.com/?q={}",
@@ -91,6 +96,10 @@ def trace_from_history(
             step.ok = not result.get("error")
             step.note = result.get("error") or result.get("extracted_content") or step.note
             step.raw = action
+            if step.action == "click" and step.target and step.ok:
+                clicked = _CLICKED_TEXT.match(step.note or "")
+                if clicked and clicked.group(1) != step.target.name:
+                    step.target.text = clicked.group(1)
 
             # A value typed into a password field is a secret, even if nobody said so.
             is_password = step.action == "type" and step.target and _is_password(step.target)
@@ -182,6 +191,8 @@ def _role(tag: str | None, attrs: dict[str, str]) -> str | None:
     """The element's role, as a screen reader would name it."""
     if attrs.get("role"):
         return attrs["role"]
+    if attrs.get("contenteditable", "").lower() in ("", "true", "plaintext-only") and "contenteditable" in attrs:
+        return "textbox"  # a rich-text editor, e.g. an email body
     match tag:
         case "button":
             return "button"

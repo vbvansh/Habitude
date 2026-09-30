@@ -82,3 +82,21 @@ def test_undeclared_password_is_masked_automatically():
 
     assert "s3cret!" not in trace.model_dump_json()
     assert trace.steps[0].value == "{{secret:password}}"
+
+
+def test_clicked_text_and_rich_text_editors_are_recognised():
+    history = {
+        "history": [
+            _item(
+                "https://mail.test",
+                [{"click": {"index": 1}}, {"input": {"index": 2, "text": "Hello"}}],
+                [_element("DIV", {"class": "x"}), _element("DIV", {"contenteditable": "true"})],
+                [{"extracted_content": 'Clicked div "Compose"'}, {"extracted_content": "Typed 'Hello'"}],
+            )
+        ]
+    }
+    click, typed = trace_from_history(history, task="t").steps
+
+    assert click.target.text == "Compose"
+    assert click.target.describe() == 'div "Compose"'
+    assert typed.target.role == "textbox"
