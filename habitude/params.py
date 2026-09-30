@@ -14,7 +14,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from habitude.trace import Target, Trace
+from habitude.trace import Target, Trace, looks_generated
 
 _QUOTED = re.compile(r'"([^"]+)"|“([^”]+)”')
 _ROLE_NAMES = {"textbox": "text", "searchbox": "query", "combobox": "option", "spinbutton": "number"}
@@ -78,11 +78,14 @@ def _suggest_name(target: Target | None, field: str, action: str) -> str:
             target.attrs.get("aria-label"),
             target.attrs.get("placeholder"),
             target.name,
-            target.attrs.get("id"),
         ):
-            ident = _identifier(candidate)
-            if ident and len(ident) >= 3:
+            if ident := _identifier(candidate):
                 return ident
+        # Ids are a last resort, and only readable ones: not "tt" or React's ":rk:".
+        element_id = target.attrs.get("id", "")
+        ident = None if looks_generated(element_id) else _identifier(element_id)
+        if ident and len(ident) >= 3:
+            return ident
         if target.role in _ROLE_NAMES:
             return _ROLE_NAMES[target.role]
     return "option" if action == "select" else "text"

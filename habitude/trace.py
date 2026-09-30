@@ -6,6 +6,7 @@ Decisions such as parameters or locators are made later by the compiler.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -29,6 +30,15 @@ Action = Literal[
     "extract",  # value = what to read from the page
     "unsupported",  # an agent action we can't replay yet; kept for transparency
 ]
+
+
+# Ids that frameworks generate automatically (React ":r5:", "mui-1234", UUIDs, long
+# hex strings). They change between page loads, so they can't identify an element.
+_GENERATED_ID = re.compile(r"^:r\w*:$|^«r\w*»$|\d{3,}|^[0-9a-f]{8}-[0-9a-f]{4}-|^[0-9a-f]{16,}$", re.IGNORECASE)
+
+
+def looks_generated(element_id: str) -> bool:
+    return bool(_GENERATED_ID.search(element_id))
 
 
 class Bounds(BaseModel):
@@ -55,8 +65,10 @@ class Target(BaseModel):
         label = self.name or self.text or self.attrs.get("placeholder") or self.attrs.get("aria-label")
         if label:
             return f'{kind} "{label}"'
-        if "id" in self.attrs:
+        if self.attrs.get("id") and not looks_generated(self.attrs["id"]):
             return f"{kind} #{self.attrs['id']}"
+        if self.attrs.get("name"):
+            return f"{kind} [name={self.attrs['name']}]"
         return kind
 
 

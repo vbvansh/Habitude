@@ -51,3 +51,24 @@ def test_compile_to_dir_writes_trace_and_workflow(tmp_path):
 
     assert Trace.load(tmp_path / "open-it" / "trace.json") == trace
     assert 'await run.goto("https://x.test")' in (tmp_path / "open-it" / "workflow.py").read_text()
+
+
+def test_generated_ids_are_left_out_and_long_signatures_wrap():
+    trace = Trace(
+        task='Send "a-very-long-recipient@example.com" the subject "A rather long subject line here"',
+        source="test",
+        steps=[
+            Step(index=1, action="type", value="a-very-long-recipient@example.com",
+                 target=Target(role="textbox", attrs={"id": ":rk:", "name": "to"})),
+            Step(index=2, action="type", value="A rather long subject line here",
+                 target=Target(role="textbox", attrs={"id": "subject"})),
+        ],
+    )  # fmt: skip
+    source = compile_trace(trace).source
+
+    assert ":rk:" not in source and '"id": "subject"' in source
+    assert "async def workflow(\n    run: Run,\n    *,\n    to: str = " in source
+    assert _workflow_args(source) == {
+        "to": "a-very-long-recipient@example.com",
+        "subject": "A rather long subject line here",
+    }

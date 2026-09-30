@@ -37,7 +37,7 @@ def test_names_come_from_field_attributes_and_stay_unique():
     )
     params = detect_params(trace)
 
-    assert [(p.name, p.steps) for p in params] == [("text", [1, 3]), ("e_mail_cc", [2])]
+    assert [(p.name, p.steps) for p in params] == [("to", [1, 3]), ("e_mail_cc", [2])]
 
 
 def test_values_not_in_task_and_secrets_stay_fixed():

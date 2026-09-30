@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from habitude import __version__
 from habitude.params import Param, detect_params, task_template
 from habitude.secrets import placeholder
-from habitude.trace import Step, Target, Trace
+from habitude.trace import Step, Target, Trace, looks_generated
 
 # Attributes that tend to stay the same when a site is redesigned. Classes,
 # styles and random data-* attributes are left out: they change too often.
@@ -47,7 +47,7 @@ SECRETS = {{ trace.secrets | tojson }}  # read from HABITUDE_SECRET_<NAME> or pa
 {%- endif %}
 
 
-async def workflow(run: Run{{ signature }}) -> None:
+async def workflow({{ signature }}) -> None:
 {{ body | join("\\n\\n") }}
 ''')
 
@@ -64,9 +64,10 @@ def compile_trace(trace: Trace) -> CompiledWorkflow:
     by_step = {(i, p.field): p for p in params for i in p.steps}
 
     body = [_step_code(step, by_step) for step in trace.steps] or ["    pass"]
-    signature = "".join(f", {p.name}: str = {lit(p.example)}" for p in params)
-    if params:
-        signature = ", *" + signature
+    args = ["run: Run"] + (["*"] + [f"{p.name}: str = {lit(p.example)}" for p in params] if params else [])
+    signature = ", ".join(args)
+    if len(f"async def workflow({signature}) -> None:") > _WIDTH:
+        signature = "".join(f"\n    {a}," for a in args) + "\n"
 
     source = _FILE.render(
         docstring=template.replace('"""', "'''").replace("\\", "\\\\"),
@@ -158,7 +159,11 @@ def _target_code(target: Target, name_param: Param | None) -> str:
         args.append(f"text={lit(target.text)}")
     if target.tag:
         args.append(f"tag={lit(target.tag)}")
-    attrs = {k: target.attrs[k] for k in _STABLE_ATTRS if target.attrs.get(k)}
+    attrs = {
+        k: target.attrs[k]
+        for k in _STABLE_ATTRS
+        if target.attrs.get(k) and not (k in ("id", "for") and looks_generated(target.attrs[k]))
+    }
     if attrs:
         args.append("attrs={" + ", ".join(f"{lit(k)}: {lit(v)}" for k, v in attrs.items()) + "}")
     if target.xpath:
