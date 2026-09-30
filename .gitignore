@@ -31,3 +31,6 @@ third_party/
 
 # Raw agent runs saved by scripts
 runs/
+
+# Workflows compiled by experiment scripts
+workflows/
