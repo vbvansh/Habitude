@@ -6,10 +6,12 @@ This module only builds the default: OpenCode Go with deepseek-v4.1-flash.
 
 import os
 import uuid
+from dataclasses import dataclass
 
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.openai.chat import ChatOpenAI
 from dotenv import load_dotenv
+from openai import AsyncOpenAI
 
 from habitude import __version__
 
@@ -19,6 +21,33 @@ DEFAULT_MODEL = "deepseek-v4.1-flash"
 # OpenCode Go asks clients to name themselves and send a stable session id,
 # so it can route requests and reuse cached prompts.
 SESSION_ID = str(uuid.uuid4())
+
+
+@dataclass
+class JsonModeChatOpenAI(ChatOpenAI):
+    """ChatOpenAI that asks for plain JSON mode when the schema is in the prompt.
+
+    Some providers reject strict JSON schemas, so the schema goes in the system
+    prompt instead. Without any JSON mode, though, models sometimes answer in their
+    own tool-call syntax (DeepSeek's "DSML"), which can't be parsed. Plain JSON
+    mode (`{"type": "json_object"}`) rules that out.
+    """
+
+    def get_client(self) -> AsyncOpenAI:
+        client = super().get_client()
+        create = client.chat.completions.create
+
+        async def create_with_json_mode(**kwargs):
+            messages = kwargs.get("messages") or []
+            schema_in_prompt = (
+                messages and messages[0].get("role") == "system" and "<json_schema>" in str(messages[0].get("content"))
+            )
+            if schema_in_prompt and "response_format" not in kwargs:
+                kwargs["response_format"] = {"type": "json_object"}
+            return await create(**kwargs)
+
+        client.chat.completions.create = create_with_json_mode
+        return client
 
 
 def default_llm(model: str | None = None) -> BaseChatModel:
@@ -31,7 +60,7 @@ def default_llm(model: str | None = None) -> BaseChatModel:
             "or pass your own browser-use chat model to Habitude."
         )
 
-    return ChatOpenAI(
+    return JsonModeChatOpenAI(
         model=model or os.getenv("OPENCODE_GO_MODEL") or DEFAULT_MODEL,
         base_url=OPENCODE_GO_URL,
         api_key=api_key,
